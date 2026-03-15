@@ -1,0 +1,71 @@
+#!/bin/bash
+#PBS -N simulation_job
+#PBS -l select=1:ncpus=48
+#PBS -l walltime=48:00:00
+#PBS -j oe
+#PBS -o job_output.log
+#PBS -m abe
+
+# ==============================
+# Go to submission directory
+# ==============================
+
+cd $PBS_O_WORKDIR
+
+echo "Job started on:"
+date
+echo "Running on host:"
+hostname
+
+# ==============================
+# Detect allocated CPUs
+# ==============================
+
+NPROCS=$(wc -l < $PBS_NODEFILE)
+echo "Total processors allocated: $NPROCS"
+
+# ==============================
+# Load modules (edit if needed)
+# ==============================
+
+module purge
+
+# Example modules (adjust for system)
+module load gnu-parallel
+module load damask
+module load anaconda3
+
+# ==============================
+# Working directory
+# ==============================
+
+BASE_DIR=$PBS_O_WORKDIR
+cd $BASE_DIR
+
+# ==============================
+# Timer start
+# ==============================
+
+start_time=$(date +%s)
+
+# ==============================
+# Run jobs using GNU parallel
+# ==============================
+
+parallel -j $NPROCS \
+         --joblog parallel_joblog.log \
+         --workdir "$BASE_DIR" \
+         bash master_run_new.sh {} ::: $(seq 1 100)
+
+# ==============================
+# Timer end
+# ==============================
+
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+
+echo "================================="
+echo "Job finished"
+echo "Total runtime: $duration seconds"
+date
+echo "================================="
