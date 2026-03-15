@@ -7,7 +7,7 @@ Created on Fri Nov 22 15:32:16 2019
 """
 
 import sys
-sys.path.append('/home/damaskAscii/')
+sys.path.append('home/Crystal_plasticity/Phenomeno/Poly/Cu/')
 #import damaskAscii
 from matplotlib import pyplot as plt
 import numpy as np, pandas as pd
