@@ -6,4 +6,4 @@ Installation
 
 Install required dependencies:
 
-pip install numpy matplotlib scipy tqdm
+`pip install numpy matplotlib scipy tqdm`
