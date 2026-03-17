@@ -7,3 +7,7 @@ This repository contains a Python script to generate synthetic polycrystalline m
 Install required dependencies:
 
 `pip install numpy matplotlib scipy tqdm`
+
+## Author
+
+Prabhat Karmakar
