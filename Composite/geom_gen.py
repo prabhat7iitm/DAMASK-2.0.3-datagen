@@ -1,72 +1,76 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Feb 19 23:53:18 2023
+Created on Sun Apr  6 00:38:52 2025
 
 @author: prabhat
 """
 
 import numpy as np
-from sklearn.pipeline import Pipeline
-import dask.array as da
-import random
-from random import shuffle
-import matplotlib.pyplot as plt
-from pymks import (
-    generate_delta,
-    generate_multiphase,
-    solve_fe,
-    plot_microstructures)
-import warnings
-warnings.filterwarnings('ignore')
-
-
-def shuffle(data):
-    tmp = np.array(data)
-    np.random.shuffle(tmp)
-    return da.from_array(tmp, chunks=data.chunks)
-
-
-da.random.seed(10)
-np.random.seed(10)
-
-tmp = [
-    generate_multiphase(shape=(500,100, 100), grain_size=x, volume_fraction=(0.2, 0.8), chunks=250, percent_variance=0.001)
-    for x in [(20, 20)]
-]
-x_data = shuffle(da.concatenate(tmp))
-
-#%%
-int_ = random.randint(0, 199)
-print(int_)
+from tqdm import tqdm
+import os
 import matplotlib.pyplot as plt
 
-# Assume x_data[int_, :, :] contains your 2D microstructure grid
-microstructure = x_data[int_, :, :]  # Replace int_ with your index
+# Base path where geom_file folder will be created
+base_path = "/home/Crystal_Plasticity/EPP/Composite/Vol_frac/20/"
+output_path = os.path.join(base_path, "geom_file")  # Unified output folder
+os.makedirs(output_path, exist_ok=True)
 
-plt.figure(figsize=(6, 6))
-im = plt.imshow(microstructure, cmap='Greys', origin='lower', vmin=0, vmax=1)
-plt.title("Microstructure")
-plt.axis("off")  # Hide axis ticks
-
-# Add colorbar with range 0 to 1
-cbar = plt.colorbar(im, shrink=0.8)
-cbar.set_label("Grain ID (normalized)")  # Optional label
-cbar.set_ticks([0, 0.5, 1])  # Optional: fixed tick marks
-
-# Save the figure
-plt.savefig("microstructure_plot.png", dpi=300, bbox_inches='tight', pad_inches=0)
-plt.close()
+# Load the input data
+with open(os.path.join(base_path, 'vol_20.npy'), 'rb') as f:
+    input_ms = np.load(f).reshape([-1, 100, 100])  # Shape: (-1, 200, 200)
 
 
+def generate_periodic_voronoi_file(grid, file_path):
+    """Generate and save a periodic Voronoi microstructure file."""
+    num_grains = 2
+    grid_size = grid.shape[0]
 
-X = x_data[int_]
-X = np.array(X)
-p = sum(sum(X==1))
-# #%%
-path = "/home/Crystal_Plasticity/EPP/Composite/Vol_frac/20/"
-np.save(path + "vol_20.npy",x_data)
-volfrac_ = p/(200*200)
-print(volfrac_)
+    with open(file_path, "w") as f:
+        f.write("19\theader\n")
+        f.write(f"geom_fromVoronoiTessellation v2.0.3 -g {grid_size} {grid_size} 1\n")
+        f.write(f"grid\ta {grid_size}\tb {grid_size}\tc 1\n")
+        f.write("size\tx 1.0\ty 1.0\tz 0.01\n")
+        f.write("origin\tx 0.0\ty 0.0\tz 0.0\n")
+        f.write("homogenization\t1\n")
+        f.write("microstructures\t2\n")
+        f.write("<microstructure>\n")
+
+        for i in range(1, num_grains + 1):
+            f.write(f"[Grain{i:03d}]\n")
+            f.write("crystallite 1\n")
+            f.write(f"(constituent)\tphase {i % 2 + 1}\ttexture {i % 2 + 1}\tfraction 1.0\n")
+
+        f.write("<texture>\n")
+        for i in range(1, num_grains + 1):
+            phi1, Phi, phi2 = 0, 0, 0
+            f.write(f"[Grain{i:03d}]\n")
+            f.write(f"(gauss)\tphi1 {phi1:.4f}\tPhi {Phi:.4f}\tphi2 {phi2:.4f}\tscatter 0.0\tfraction 1.0\n")
+
+        f.write("<!skip>\n")
+        for row in grid:
+            f.write(" ".join(map(str, row + 1)) + "\n")
+
+
+def save_microstructure_plot(grid, file_path):
+    """Save the microstructure plot as an image."""
+    plt.figure(figsize=(6, 6))
+    plt.imshow(grid, cmap='gray', origin='lower')
+    plt.xticks([])
+    plt.yticks([])
+    plt.axis("off")
+    plt.savefig(file_path, dpi=300, bbox_inches='tight', pad_inches=0)
+    plt.close()
+
 #%%
+# Loop over all samples and save to the same folder
+for i in tqdm(range(1, input_ms.shape[0] + 1), desc="Generating files", unit="file"):
+    grid = input_ms[i - 1]
 
+    geom_filename = os.path.join(output_path, f"d_{i}.geom")
+    png_filename = os.path.join(output_path, f"d_{i}.png")
+
+    generate_periodic_voronoi_file(grid, geom_filename)
+    save_microstructure_plot(grid, png_filename)
+
+print("All .geom and .png files have been saved in 'geom_file' successfully!")
